@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "watch": true,
+        "outDir": "out",
+        "rootDir": "src",
+        "moduleResolution": "node",
+        "module": "commonjs",
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "noImplicitUseStrict": true
+    }
+}
