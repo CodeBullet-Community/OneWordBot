@@ -1,6 +1,6 @@
 # OneWordBot
 
-A simple discord bot which auto moderates One Word Stories and compiles a story together.
+A simple Discord bot which auto moderates One Word Stories and compiles the story together.
 
 ## Bot Configuration File
 
