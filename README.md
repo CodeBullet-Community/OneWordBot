@@ -15,7 +15,7 @@ To be placed in `src/bot-config.json` or `out/bot-config.json` if only compiled 
     ],
     "channel": "[channel id]",
     "limits": {
-        "maxWordLength": 15, # in chars
+        "maxWordLength": 15,
         "bannedWords": [
             "corn"
         ],
@@ -24,7 +24,7 @@ To be placed in `src/bot-config.json` or `out/bot-config.json` if only compiled 
         ]
     },
     "saveLocation": "story.txt",
-    "saveInterval": 10000 # in milliseconds
+    "saveInterval": 10000
 }
 ```
 
