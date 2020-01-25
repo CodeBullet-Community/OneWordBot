@@ -60,14 +60,16 @@ let commands = {
 let words = {};
 if (fs.existsSync(conf.saveLocation)) words = fs.readFileSync(conf.saveLocation).toString().split(' ');
 
-let maxWordsPerMessage = Math.floor(2000 / (conf.maxWordLength + 1));
+let maxWordsPerMessage = Math.floor(2000 / (conf.limits.maxWordLength + 1));
 console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
 
 function checkMessage(message: Message) {
-    if (message.content.length > conf.maxWordLength) return false;
+    if (message.content.length > conf.limits.maxWordLength) return false;
     if (/[\s_]/gm.test(message.content)) return false;
     if (/[A-Z].*[A-Z]/gm.test(message.content) &&
         message.content !== message.content.toUpperCase()) return false;
+    if (conf.limits.bannedWords.includes(message.content.toLowerCase())) return false;
+    if (conf.limits.bannedUsers.includes(message.author.id)) return false;
     return true;
 }
 
