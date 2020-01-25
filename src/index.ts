@@ -58,7 +58,8 @@ let commands = {
 };
 
 let words = {};
-if (fs.existsSync(conf.saveLocation)) words = JSON.parse(fs.readFileSync(conf.saveLocation).toString());
+if (fs.existsSync(conf.saveLocation)) words = fs.readFileSync(conf.saveLocation).toString().split(' ');
+
 let maxWordsPerMessage = Math.floor(2000 / (conf.maxWordLength + 1));
 console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
 
