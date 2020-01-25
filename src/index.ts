@@ -1,4 +1,4 @@
-import * as discord from 'discord.js';
+import { Message, Client, Attachment } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 
@@ -32,14 +32,53 @@ process.on('unhandledRejection', async (reason, promise) => {
 
 // all commands
 let commands = {
-    '[command name]': async (message: discord.Message, args: string) => {
+    'savestory': async (message: Message, args: string) => {
         if (!conf.botMasters.includes(message.author.id)) return; // when the command only should be used by mods
-        // stuff
+        save();
+        message.channel.send('Story was saved successfully');
+    },
+    'showstory': async (message: Message, args: string) => {
+        if (Object.entries(words).length === 0)
+            return message.channel.send('*empty story*');
+
+        let story = Object.values(words);
+        if (!args.toLocaleLowerCase().includes('file'))
+            return message.channel.send(story.slice(-maxWordsPerMessage).join(' '));
+
+        try {
+            let name = `story ${new Date().toDateString()}.txt`;
+            let content = Buffer.from(story.join(' '), 'utf8');;
+            let attachment = new Attachment(content, name);
+            await message.channel.send(`Story is ${story.length} words long`, attachment);
+        } catch (err) {
+            console.debug(err);
+            message.channel.send('file to large to send');
+        }
     }
 };
 
-let client = new discord.Client({ disableEveryone: true });
+let words = {};
+if (fs.existsSync(conf.saveLocation)) words = JSON.parse(fs.readFileSync(conf.saveLocation).toString());
+let maxWordsPerMessage = Math.floor(2000 / (conf.maxWordLength + 1));
+console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
+
+function checkMessage(message: Message) {
+    if (message.content.length > conf.maxWordLength) return false;
+    if (/[\s_]/gm.test(message.content)) return false;
+    if (/[A-Z].*[A-Z]/gm.test(message.content) &&
+        message.content !== message.content.toUpperCase()) return false;
+    return true;
+}
+
+function save() {
+    let content = Object.values(words).join(' ');
+    fs.writeFileSync(conf.saveLocation, content);
+}
+
+let client = new Client({ disableEveryone: true });
 client.on('ready', () => {
+    setInterval(save, conf.saveInterval);
+    console.info(`Saving story every ${conf.saveInterval} milliseconds`);
     console.info("I'm ready!");
 });
 
@@ -50,8 +89,29 @@ client.on('message', async message => {
         let args = message.content.slice(conf.prefix.length + command.length + 1);
         let cmdFunc = commands[command];
         if (cmdFunc) cmdFunc(message, args);
+        return;
     }
 
+    if (message.channel.id != conf.channel) return;
+    if (checkMessage(message))
+        words[message.id] = message.content;
+    else {
+        console.log(message.author.username, message.author.id, message.content);
+        message.delete(0);
+    }
+
+});
+
+client.on('messageUpdate', (oldMessage, newMessage) => {
+    if (newMessage.channel.id != conf.channel) return;
+    if (!checkMessage(newMessage)) return;
+    words[newMessage.id] = newMessage.content;
+
+})
+
+client.on('messageDelete', message => {
+    if (message.channel.id != conf.channel) return;
+    delete words[message.id];
 });
 
 client.login(conf.botToken);

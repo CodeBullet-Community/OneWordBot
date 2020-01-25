@@ -8,6 +8,7 @@
         "module": "commonjs",
         "resolveJsonModule": true,
         "esModuleInterop": true,
-        "noImplicitUseStrict": true
+        "noImplicitUseStrict": true,
+        "sourceMap": true
     }
 }

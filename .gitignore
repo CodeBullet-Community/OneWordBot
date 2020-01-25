@@ -66,3 +66,9 @@ out/
 # auth stuff
 bot-config.json
 bot-config.json.old
+
+# vscode settings
+.vscode
+
+# story
+story.txt
