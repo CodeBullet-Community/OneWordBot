@@ -27,3 +27,6 @@ To be placed in `src/bot-config.json` or `out/bot-config.json` if only compiled 
     "saveInterval": 10000 # in milliseconds
 }
 ```
+
+* `limits.maxWordLength` is in characters
+* `saveInterval` is in milliseconds
