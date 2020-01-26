@@ -13,6 +13,7 @@ To be placed in `src/bot-config.json` or `out/bot-config.json` if only compiled 
     "botMasters": [
         "[user id]"
     ],
+    "guild": "[guild id]",
     "channel": "[channel id]",
     "limits": {
         "maxWordLength": 15,
@@ -23,10 +24,12 @@ To be placed in `src/bot-config.json` or `out/bot-config.json` if only compiled 
             "user id"
         ]
     },
+    "embedColor": 8311585,
     "saveLocation": "story.txt",
     "saveInterval": 10000
 }
 ```
 
 * `limits.maxWordLength` is in characters
+* `embedColor` is a color code as specified in the Discord docs
 * `saveInterval` is in milliseconds
