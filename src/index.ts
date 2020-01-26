@@ -1,6 +1,7 @@
 import { Message, Client, Attachment } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
+import exitHook = require('exit-hook');
 
 // console logging info
 require('console-stamp')(console, {
@@ -28,6 +29,12 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', async (reason, promise) => {
     let error = new Error('Unhandled Rejection. Reason: ' + reason);
     console.error(error, "Promise:", promise);
+});
+
+exitHook(() => {
+    console.log('Saving story...');
+    save();
+    console.log("Story saved");
 });
 
 // all commands

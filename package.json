@@ -19,6 +19,7 @@
   "dependencies": {
     "@types/node": "^12.12.6",
     "console-stamp": "^3.0.0-rc3.0",
-    "discord.js": "^11.5.1"
+    "discord.js": "^11.5.1",
+    "exit-hook": "^2.2.0"
   }
 }
