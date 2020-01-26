@@ -1,4 +1,4 @@
-import { Message, Client, Attachment } from 'discord.js';
+import { Message, Client, Attachment, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 import exitHook = require('exit-hook');
@@ -45,12 +45,25 @@ let commands = {
         message.channel.send('Story was saved successfully');
     },
     'showstory': async (message: Message, args: string) => {
-        if (Object.entries(words).length === 0)
-            return message.channel.send('*empty story*');
-
         let story = Object.values(words);
-        if (!args.toLocaleLowerCase().includes('file'))
-            return message.channel.send(story.slice(-maxWordsPerMessage).join(' '));
+        if (!args.toLocaleLowerCase().includes('file')) {
+            let embed = {
+                "embed": {
+                    "description": story.slice(-maxWordsPerMessage).join(' '),
+                    "timestamp": new Date().toISOString(),
+                    "color": conf.embedColor,
+                    "footer": {
+                        "text": `${story.length} Words`
+                    },
+                    "author": {
+                        "name": "One Word Story",
+                        "url": `https://discordapp.com/channels/${conf.guild}/${conf.channel}`
+                    }
+                }
+            };
+            message.channel.send(embed);
+            return;
+        }
 
         try {
             let name = `story ${new Date().toDateString()}.txt`;
@@ -66,6 +79,7 @@ let commands = {
 
 let words = {};
 if (fs.existsSync(conf.saveLocation)) words = fs.readFileSync(conf.saveLocation).toString().split(' ');
+if (words[0] === '') delete words[0];
 
 let maxWordsPerMessage = Math.floor(2000 / (conf.limits.maxWordLength + 1));
 console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
@@ -94,6 +108,7 @@ client.on('ready', () => {
 
 client.on('message', async message => {
     if (message.author.bot) return; // bot shouldn't listen to other bots
+    if (message.guild.id !== conf.guild) return;
     if (message.content.startsWith(conf.prefix)) {
         let command = message.content.split(' ')[0].slice(conf.prefix.length).toLowerCase(); // gets command name
         let args = message.content.slice(conf.prefix.length + command.length + 1);
