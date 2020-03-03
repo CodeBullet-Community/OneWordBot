@@ -39,6 +39,30 @@ exitHook(() => {
 
 // all commands
 let commands = {
+    'wholestory': async (message: Message, args: string) => {
+        if (message.channel.type!="text") return;
+        let lArgs= args.split(" ");
+        let indexed: object;
+        let channel: any = message.channel;
+        try{
+            switch(lArgs.length){
+                case 1:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[0]));
+                    break;
+                case 2:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[0]),lArgs[1].toLowerCase()=="true");
+                    break;
+                case 3:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[0]),lArgs[1].toLowerCase()=="true",Number(lArgs[2]));
+                    break;
+                default:
+                    indexed=indexChannel(channel,message.id);
+                    break;
+            }
+        } catch(e) {
+            console.log(e);
+        }
+    },
     'savestory': async (message: Message, args: string) => {
         if (!conf.botMasters.includes(message.author.id)) return; // when the command only should be used by mods
         save();
