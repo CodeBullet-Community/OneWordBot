@@ -22,6 +22,15 @@ require('console-stamp')(console, {
     pattern: 'dd/mm/yyyy HH:MM:ss.l'
 });
 
+// interface to properly type messages.
+interface story {
+    lastMessageId: string,
+    story: messageStory
+}
+interface messageStory{
+    [id: string]: string
+}
+
 process.on('uncaughtException', (error) => {
     console.error(error);
 });
@@ -39,7 +48,7 @@ exitHook(() => {
 
 // all commands
 let commands = {
-    'wholestory': async (message: Message, args: string) => {
+    'wholestory': async (message: Message, args: string) => { // command to index an entire channel
         if (message.channel.type!="text") return;
         let lArgs= args.split(" ");
         let indexed: object;
@@ -118,6 +127,11 @@ function checkMessage(message: Message) {
     return true;
 }
 
+/** 
+Recursive function, only channel and start (message id) is strictly required. 
+If topToBot is set to true will read from start variable and then down.
+NOTE: limit can not be set to more than 100.
+*/
 function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:object[]=[], iterate=0): any{
     let controll={limit:limit};
     let conString="after";
