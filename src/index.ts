@@ -1,4 +1,4 @@
-import { Message, Client, Attachment, TextChannel } from 'discord.js';
+import { Message, Client, Attachment, TextChannel, Channel } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 import exitHook = require('exit-hook');
@@ -94,6 +94,23 @@ function checkMessage(message: Message) {
     return true;
 }
 
+function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:object[]=[], iterate=0): any{
+    let controll={limit:limit};
+    let conString="after";
+    if (topToBot) conString="before";
+    controll[conString]=start
+    channel.fetchMessages(controll).then(mess=>{
+        let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
+        if (length+limit>length+mess.size || iterate==maxiteration) { 
+                return {messages:conCatMess,id:start};
+        } else {
+            iterate++
+            //console.log(iterate,maxiteration,start)
+            return indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
+        }
+    });
+}
+  
 function save() {
     let content = Object.values(words).join(' ');
     fs.writeFileSync(conf.saveLocation, content);
