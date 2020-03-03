@@ -140,7 +140,7 @@ function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=fa
     channel.fetchMessages(controll).then(mess=>{
         let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
         if (length+limit>length+mess.size || iterate==maxiteration) { 
-                return {messages:conCatMess,id:start};
+                return {messages:conCatMess,id:mess.array()[mess.array().length-1].id};
         } else {
             iterate++
             //console.log(iterate,maxiteration,start)
