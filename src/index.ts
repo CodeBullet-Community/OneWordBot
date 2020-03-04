@@ -78,7 +78,7 @@ let commands = {
         message.channel.send('Story was saved successfully');
     },
     'showstory': async (message: Message, args: string) => {
-        let story = Object.values(words);
+        let story = Object.values(words.story);
         if (!args.toLocaleLowerCase().includes('file')) {
             let embed = {
                 "embed": {
@@ -110,9 +110,8 @@ let commands = {
     }
 };
 
-let words = {};
-if (fs.existsSync(conf.saveLocation)) words = fs.readFileSync(conf.saveLocation).toString().split(' ');
-if (words[0] === '') delete words[0];
+let words: story;
+if (fs.existsSync(conf.saveLocation)) words = JSON.parse(fs.readFileSync(conf.saveLocation).toString());
 
 let maxWordsPerMessage = Math.floor(2000 / (conf.limits.maxWordLength + 1));
 console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
@@ -148,14 +147,18 @@ function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=fa
         }
     });
 }
+/** Check if reading from last id is necissary, and then do so. */
+function checkLastId(channel:TextChannel){
+
+}
   
 function save() {
-    let content = Object.values(words).join(' ');
-    fs.writeFileSync(conf.saveLocation, content);
+    fs.writeFileSync(conf.saveLocation, JSON.stringify(words));
 }
 
 let client = new Client({ disableEveryone: true });
 client.on('ready', () => {
+    checkLastId(client.channels[conf.channel])
     setInterval(save, conf.saveInterval);
     console.info(`Saving story every ${conf.saveInterval} milliseconds`);
     console.info("I'm ready!");
@@ -174,7 +177,7 @@ client.on('message', async message => {
 
     if (message.channel.id != conf.channel) return;
     if (checkMessage(message))
-        words[message.id] = message.content;
+        words.story[message.id] = message.content;
     else {
         console.log(message.author.username, message.author.id, message.content);
         message.delete(0);
@@ -185,13 +188,13 @@ client.on('message', async message => {
 client.on('messageUpdate', (oldMessage, newMessage) => {
     if (newMessage.channel.id != conf.channel) return;
     if (!checkMessage(newMessage)) return;
-    words[newMessage.id] = newMessage.content;
+    words.story[newMessage.id] = newMessage.content;
 
 })
 
 client.on('messageDelete', message => {
     if (message.channel.id != conf.channel) return;
-    delete words[message.id];
+    delete words.story[message.id];
 });
 
 client.login(conf.botToken);
