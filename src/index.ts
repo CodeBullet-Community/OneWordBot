@@ -78,9 +78,23 @@ let commands = {
             let newMessage=convertToStory(indexed)
             words.lastMessageId=newMessage.lastMessageId;
             Object.assign(words.story, newMessage.story);
+            save();
         } catch(e) {
             console.log(e);
         }
+        let story = Object.values(words.story);
+        let embed = {
+            "embed": {
+                "description": `The story length is: ${story.length} Words`,
+                "timestamp": new Date().toISOString(),
+                "color": conf.embedColor,
+                "author": {
+                    "name": "One Word Story",
+                    "url": `https://discordapp.com/channels/${conf.guild}/${conf.channel}`
+                }
+            }
+        };
+        message.author.send(embed);
     },
     'savestory': async (message: Message, args: string) => {
         if (!conf.botMasters.includes(message.author.id)) return; // when the command only should be used by mods
