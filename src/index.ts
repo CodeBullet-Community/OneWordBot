@@ -30,10 +30,10 @@ interface story {
     }
 }
 interface indexReturn {
-    [index: number]:{
+    mesages: [{
         message: string,
         id: string
-    },
+    }],
     lastId: string
 }
 
@@ -58,7 +58,7 @@ let commands = {
     'wholestory': async (message: Message, args: string) => { // command to index an entire channel
         if (message.channel.type!="text") return;
         let lArgs= args.split(" ");
-        let indexed: object;
+        let indexed: indexReturn;
         let channel: any = message.channel;
         try{
             switch(lArgs.length){
@@ -75,6 +75,9 @@ let commands = {
                     indexed=indexChannel(channel,message.id);
                     break;
             }
+            let newMessage=convertToStory(indexed)
+            words.lastMessageId=newMessage.lastMessageId;
+            Object.assign(words.story, newMessage.story);
         } catch(e) {
             console.log(e);
         }
@@ -154,17 +157,21 @@ function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=fa
         }
     });
 }
-/** Return all data generated from indexChannel into StoryObject. */
-function writeToWords(object:indexReturn){
+/** Return all data generated from indexChannel converted into StoryObject. */
+function convertToStory(object:indexReturn){
     let storyObject:story;
     storyObject.lastMessageId = object.lastId;
+    object.mesages.forEach(e=>{storyObject.story[e.id]=e.message});
     return storyObject;
 }
 
 /** Check if reading from last id is necissary, and then do so. */
 function checkLastId(channel:TextChannel){
     if(channel.lastMessageID==words.lastMessageId) return;
-
+    let newMessage=convertToStory(indexChannel(channel,words.lastMessageId,50,true))
+    words.lastMessageId=newMessage.lastMessageId;
+    Object.assign(words.story, newMessage.story);
+    save();
 }
   
 function save() {
