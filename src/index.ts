@@ -25,11 +25,18 @@ require('console-stamp')(console, {
 // interface to properly type messages.
 interface story {
     lastMessageId: string,
-    story: messageStory
+    story: {
+        [id: string]: string
+    }
 }
-interface messageStory{
-    [id: string]: string
+interface indexReturn {
+    [index: number]:{
+        message: string,
+        id: string
+    },
+    lastId: string
 }
+
 
 process.on('uncaughtException', (error) => {
     console.error(error);
@@ -139,7 +146,7 @@ function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=fa
     channel.fetchMessages(controll).then(mess=>{
         let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
         if (length+limit>length+mess.size || iterate==maxiteration) { 
-                return {messages:conCatMess,id:mess.array()[mess.array().length-1].id};
+                return {messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
         } else {
             iterate++
             //console.log(iterate,maxiteration,start)
@@ -147,8 +154,16 @@ function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=fa
         }
     });
 }
+/** Return all data generated from indexChannel into StoryObject. */
+function writeToWords(object:indexReturn){
+    let storyObject:story;
+    storyObject.lastMessageId = object.lastId;
+    return storyObject;
+}
+
 /** Check if reading from last id is necissary, and then do so. */
 function checkLastId(channel:TextChannel){
+    if(channel.lastMessageID==words.lastMessageId) return;
 
 }
   
