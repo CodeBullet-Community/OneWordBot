@@ -2,6 +2,7 @@ import { Message, Client, Attachment, TextChannel, Channel } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 import exitHook = require('exit-hook');
+import { isUndefined } from 'util';
 
 // console logging info
 require('console-stamp')(console, {
@@ -182,6 +183,7 @@ function convertToStory(object:indexReturn){
 
 /** Check if reading from last id is necissary, and then do so. */
 function checkLastId(channel:TextChannel){
+    if(words==undefined) return;
     if(channel.lastMessageID==words.lastMessageId) return;
     let newMessage=convertToStory(indexChannel(channel,words.lastMessageId,50,true))
     words.lastMessageId=newMessage.lastMessageId;
@@ -190,6 +192,7 @@ function checkLastId(channel:TextChannel){
 }
   
 function save() {
+    if(words==undefined) return;
     fs.writeFileSync(conf.saveLocation, JSON.stringify(words));
 }
 
