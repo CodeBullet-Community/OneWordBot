@@ -95,6 +95,7 @@ let commands = {
             }
         };
         message.author.send(embed);
+        message.delete();
     },
     'savestory': async (message: Message, args: string) => {
         if (!conf.botMasters.includes(message.author.id)) return; // when the command only should be used by mods
