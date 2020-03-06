@@ -31,13 +31,13 @@ interface story {
     }
 }
 interface indexReturn {
-    mesages: [{
-        message: string,
-        id: string
-    }],
+    messages: Array<indexObject>,
     lastId: string
 }
-
+interface indexObject {
+    message: string,
+    id: string
+}
 
 process.on('uncaughtException', (error) => {
     console.error(error);
@@ -136,7 +136,7 @@ let commands = {
     }
 };
 
-let words: story;
+let words: story={lastMessageId:"",story:{}};
 if (fs.existsSync(conf.saveLocation)) words = JSON.parse(fs.readFileSync(conf.saveLocation).toString());
 
 let maxWordsPerMessage = Math.floor(2000 / (conf.limits.maxWordLength + 1));
@@ -157,33 +157,35 @@ Recursive function, only channel and start (message id) is strictly required.
 If topToBot is set to true will read from start variable and then down.
 NOTE: limit can not be set to more than 100.
 */
-function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:object[]=[], iterate=0): any{
+function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:Array<indexObject>=[], iterate=0): indexReturn{
     let controll={limit:limit};
     let conString="after";
     if (topToBot) conString="before";
-    controll[conString]=start
+    controll[conString]=start;
+    let returning:indexReturn;
     channel.fetchMessages(controll).then(mess=>{
         let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
         if (length+limit>length+mess.size || iterate==maxiteration) { 
-                return {messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
+                returning={messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
         } else {
             iterate++
             //console.log(iterate,maxiteration,start)
-            return indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
+            returning=indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
         }
     });
+    return returning;
 }
 /** Return all data generated from indexChannel converted into StoryObject. */
 function convertToStory(object:indexReturn){
     let storyObject:story;
     storyObject.lastMessageId = object.lastId;
-    object.mesages.forEach(e=>{storyObject.story[e.id]=e.message});
+    object.messages.forEach(e=>{storyObject.story[e.id]=e.message});
     return storyObject;
 }
 
 /** Check if reading from last id is necissary, and then do so. */
 function checkLastId(channel:TextChannel){
-    if(words==undefined) return;
+    if(words.lastMessageId=="") return;
     if(channel.lastMessageID==words.lastMessageId) return;
     let newMessage=convertToStory(indexChannel(channel,words.lastMessageId,50,true))
     words.lastMessageId=newMessage.lastMessageId;
@@ -192,13 +194,14 @@ function checkLastId(channel:TextChannel){
 }
   
 function save() {
-    if(words==undefined) return;
+    if(words.lastMessageId=="") return;
     fs.writeFileSync(conf.saveLocation, JSON.stringify(words));
 }
 
 let client = new Client({ disableEveryone: true });
 client.on('ready', () => {
-    checkLastId(client.channels[conf.channel])
+    let channel: any = client.channels.get(conf.channel);
+    checkLastId(channel)
     setInterval(save, conf.saveInterval);
     console.info(`Saving story every ${conf.saveInterval} milliseconds`);
     console.info("I'm ready!");
@@ -216,9 +219,10 @@ client.on('message', async message => {
     }
 
     if (message.channel.id != conf.channel) return;
-    if (checkMessage(message))
+    if (checkMessage(message)) {
         words.story[message.id] = message.content;
-    else {
+        words.lastMessageId = message.id;
+    } else {
         console.log(message.author.username, message.author.id, message.content);
         message.delete(0);
     }
