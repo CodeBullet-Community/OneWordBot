@@ -186,7 +186,7 @@ function convertToStory(object:indexReturn){
 function checkLastId(channel:TextChannel){
     if(words.lastMessageId=="") return;
     if(channel.lastMessageID==words.lastMessageId) return;
-    indexChannel(channel,words.lastMessageId,10).then(e=>{
+    indexChannel(channel,words.lastMessageId,10,true).then(e=>{
         let newMessage=convertToStory(e)
         words.lastMessageId=newMessage.lastMessageId;
         Object.assign(words.story, newMessage.story);
