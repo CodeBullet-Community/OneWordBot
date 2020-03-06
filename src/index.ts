@@ -59,7 +59,7 @@ let commands = {
     'wholestory': async (message: Message, args: string) => { // command to index an entire channel
         if (message.channel.type!="text") return;
         let lArgs= args.split(" ");
-        let indexed: indexReturn;
+        let indexed: Promise<indexReturn>;
         let channel: any = message.channel;
         try{
             switch(lArgs.length){
@@ -76,10 +76,12 @@ let commands = {
                     indexed=indexChannel(channel,message.id);
                     break;
             }
-            let newMessage=convertToStory(indexed)
-            words.lastMessageId=newMessage.lastMessageId;
-            Object.assign(words.story, newMessage.story);
-            save();
+            indexed.then(e=>{
+                let newMessage=convertToStory(e);
+                words.lastMessageId=newMessage.lastMessageId;
+                Object.assign(words.story, newMessage.story);
+                save();
+            })
         } catch(e) {
             console.log(e);
         }
@@ -157,27 +159,24 @@ Recursive function, only channel and start (message id) is strictly required.
 If topToBot is set to true will read from start variable and then down.
 NOTE: limit can not be set to more than 100.
 */
-function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:Array<indexObject>=[], iterate=0): indexReturn{
+async function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:Array<indexObject>=[], iterate=0): Promise<indexReturn>{
     let controll={limit:limit};
     let conString="after";
     if (topToBot) conString="before";
     controll[conString]=start;
-    let returning:indexReturn;
-    channel.fetchMessages(controll).then(mess=>{
-        let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
-        if (length+limit>length+mess.size || iterate==maxiteration) { 
-                returning={messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
-        } else {
-            iterate++
-            //console.log(iterate,maxiteration,start)
-            returning=indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
-        }
-    });
-    return returning;
+    let mess = await channel.fetchMessages(controll)
+    let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
+    if (length+limit>length+mess.size || iterate==maxiteration) { 
+            return {messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
+    } else {
+        iterate++
+        //console.log(iterate,maxiteration,start)
+        return indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
+    }
 }
 /** Return all data generated from indexChannel converted into StoryObject. */
 function convertToStory(object:indexReturn){
-    let storyObject:story;
+    let storyObject:story={lastMessageId:"",story:{}};
     storyObject.lastMessageId = object.lastId;
     object.messages.forEach(e=>{storyObject.story[e.id]=e.message});
     return storyObject;
@@ -187,10 +186,12 @@ function convertToStory(object:indexReturn){
 function checkLastId(channel:TextChannel){
     if(words.lastMessageId=="") return;
     if(channel.lastMessageID==words.lastMessageId) return;
-    let newMessage=convertToStory(indexChannel(channel,words.lastMessageId,50,true))
-    words.lastMessageId=newMessage.lastMessageId;
-    Object.assign(words.story, newMessage.story);
-    save();
+    indexChannel(channel,words.lastMessageId,10).then(e=>{
+        let newMessage=convertToStory(e)
+        words.lastMessageId=newMessage.lastMessageId;
+        Object.assign(words.story, newMessage.story);
+        save();
+    });
 }
   
 function save() {
