@@ -1,7 +1,8 @@
-import { Message, Client, Attachment, TextChannel } from 'discord.js';
+import { Message, Client, Attachment, TextChannel, Channel } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 import exitHook = require('exit-hook');
+import { isUndefined, isBoolean } from 'util';
 
 // console logging info
 require('console-stamp')(console, {
@@ -22,6 +23,22 @@ require('console-stamp')(console, {
     pattern: 'dd/mm/yyyy HH:MM:ss.l'
 });
 
+// interface to properly type messages.
+interface story {
+    lastMessageId: string,
+    story: {
+        [id: string]: string
+    }
+}
+interface indexReturn {
+    messages: Array<indexObject>,
+    lastId: string
+}
+interface indexObject {
+    message: string,
+    id: string
+}
+
 process.on('uncaughtException', (error) => {
     console.error(error);
 });
@@ -39,13 +56,57 @@ exitHook(() => {
 
 // all commands
 let commands = {
+    'wholestory': async (message: Message, args: string) => { // command to index an entire channel
+        if (message.channel.type!="text") return;
+        let lArgs= args.split(" ");
+        let indexed: Promise<indexReturn>;
+        let channel: any = message.channel;
+        try{
+            switch(lArgs.length){
+                case 2:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]));
+                    break;
+                case 3:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]),lArgs[2].toLowerCase()=="true");
+                    break;
+                case 4:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]),lArgs[2].toLowerCase()=="true",Number(lArgs[3]));
+                    break;
+                default:
+                    indexed=indexChannel(channel,message.id);
+                    break;
+            }
+            indexed.then(e=>{
+                let newMessage=convertToStory(e);
+                words.lastMessageId=newMessage.lastMessageId;
+                Object.assign(words.story, newMessage.story);
+                save();
+                let story = Object.values(words.story);
+                let embed = {
+                    "embed": {
+                        "description": `The story length is: ${story.length} Words`,
+                        "timestamp": new Date().toISOString(),
+                        "color": conf.embedColor,
+                        "author": {
+                            "name": "One Word Story",
+                            "url": `https://discordapp.com/channels/${conf.guild}/${conf.channel}`
+                        }
+                    }
+                };
+                message.author.send(embed);
+            })
+        } catch(e) {
+            console.log(e);
+        }
+        message.delete();
+    },
     'savestory': async (message: Message, args: string) => {
         if (!conf.botMasters.includes(message.author.id)) return; // when the command only should be used by mods
         save();
         message.channel.send('Story was saved successfully');
     },
     'showstory': async (message: Message, args: string) => {
-        let story = Object.values(words);
+        let story = Object.values(words.story);
         if (!args.toLocaleLowerCase().includes('file')) {
             let embed = {
                 "embed": {
@@ -77,9 +138,8 @@ let commands = {
     }
 };
 
-let words = {};
-if (fs.existsSync(conf.saveLocation)) words = fs.readFileSync(conf.saveLocation).toString().split(' ');
-if (words[0] === '') delete words[0];
+let words: story={lastMessageId:"",story:{}};
+if (fs.existsSync(conf.saveLocation)) words = JSON.parse(fs.readFileSync(conf.saveLocation).toString());
 
 let maxWordsPerMessage = Math.floor(2000 / (conf.limits.maxWordLength + 1));
 console.info(`${conf.prefix}showstory will return ${maxWordsPerMessage} words at max`);
@@ -94,15 +154,64 @@ function checkMessage(message: Message) {
     return true;
 }
 
+/** 
+Recursive function, only channel and start (message id) is strictly required. 
+If topToBot is set to true will read from start variable and then down.
+NOTE: limit can not be set to more than 100.
+*/
+async function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:Array<indexObject>=[], iterate=0): Promise<indexReturn>{
+    let controll={limit:limit};
+    let conString="after";
+    if (!topToBot) conString="before";
+    controll[conString]=start;
+
+    let mess = await channel.fetchMessages(controll);
+    if(mess==undefined||mess.size<1) return;
+
+    let newMessArray:Array<indexObject>=[];
+    mess.forEach(e=>newMessArray.push({message:e.content,id:e.id}));
+    let conCatMess = message.concat(newMessArray);
+    conCatMess.sort((a,b)=>{if(a.id>b.id){return 1;}if(a.id<b.id){return -1;}return 0;})
+
+    if (length+limit>length+mess.size || iterate==maxiteration) { 
+            return {messages:conCatMess,lastId:conCatMess[0].id};
+    } else {
+        iterate++
+        return indexChannel(channel,conCatMess[0].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
+    }
+}
+/** Return all data generated from indexChannel converted into StoryObject. */
+function convertToStory(object:indexReturn){
+    let storyObject:story={lastMessageId:"",story:{}};
+    storyObject.lastMessageId = object.lastId;
+    object.messages.forEach(e=>{storyObject.story[e.id]=e.message});
+    return storyObject;
+}
+
+/** Check if reading from last id is necissary, and then do so. */
+function checkLastId(channel:TextChannel){
+    if(words.lastMessageId=="") return;
+    if(channel.lastMessageID==words.lastMessageId) return;
+    indexChannel(channel,words.lastMessageId,100,true).then(e=>{
+        let newMessage=convertToStory(e);
+        words.lastMessageId=newMessage.lastMessageId;
+        Object.assign(words.story, newMessage.story);
+        save();
+    });
+}
+  
 function save() {
-    let content = Object.values(words).join(' ');
-    fs.writeFileSync(conf.saveLocation, content);
+    if(words.lastMessageId=="") return;
+    if(words.story==undefined) return;
+    fs.writeFileSync(conf.saveLocation, JSON.stringify(words));
 }
 
 let client = new Client({ disableEveryone: true });
 client.on('ready', () => {
+    let channel: any = client.channels.get(conf.channel);
+    checkLastId(channel)
     setInterval(save, conf.saveInterval);
-    console.info(`Saving story every ${conf.saveInterval} milliseconds`);
+    console.info(`Saving story every ${conf.saveInterval/1000} seconds.`);
     console.info("I'm ready!");
 });
 
@@ -118,9 +227,10 @@ client.on('message', async message => {
     }
 
     if (message.channel.id != conf.channel) return;
-    if (checkMessage(message))
-        words[message.id] = message.content;
-    else {
+    if (checkMessage(message)) {
+        words.story[message.id] = message.content;
+        words.lastMessageId = message.id;
+    } else {
         console.log(message.author.username, message.author.id, message.content);
         message.delete(0);
     }
@@ -130,13 +240,13 @@ client.on('message', async message => {
 client.on('messageUpdate', (oldMessage, newMessage) => {
     if (newMessage.channel.id != conf.channel) return;
     if (!checkMessage(newMessage)) return;
-    words[newMessage.id] = newMessage.content;
+    words.story[newMessage.id] = newMessage.content;
 
 })
 
 client.on('messageDelete', message => {
     if (message.channel.id != conf.channel) return;
-    delete words[message.id];
+    delete words.story[message.id];
 });
 
 client.login(conf.botToken);
