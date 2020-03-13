@@ -2,7 +2,7 @@ import { Message, Client, Attachment, TextChannel, Channel } from 'discord.js';
 import * as fs from 'fs';
 import * as conf from './bot-config.json';
 import exitHook = require('exit-hook');
-import { isUndefined } from 'util';
+import { isUndefined, isBoolean } from 'util';
 
 // console logging info
 require('console-stamp')(console, {
@@ -63,14 +63,14 @@ let commands = {
         let channel: any = message.channel;
         try{
             switch(lArgs.length){
-                case 1:
-                    indexed=indexChannel(channel,message.id,Number(lArgs[0]));
-                    break;
                 case 2:
-                    indexed=indexChannel(channel,message.id,Number(lArgs[0]),lArgs[1].toLowerCase()=="true");
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]));
                     break;
                 case 3:
-                    indexed=indexChannel(channel,message.id,Number(lArgs[0]),lArgs[1].toLowerCase()=="true",Number(lArgs[2]));
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]),lArgs[2].toLowerCase()=="true");
+                    break;
+                case 4:
+                    indexed=indexChannel(channel,message.id,Number(lArgs[1]),lArgs[2].toLowerCase()=="true",Number(lArgs[3]));
                     break;
                 default:
                     indexed=indexChannel(channel,message.id);
@@ -81,23 +81,23 @@ let commands = {
                 words.lastMessageId=newMessage.lastMessageId;
                 Object.assign(words.story, newMessage.story);
                 save();
+                let story = Object.values(words.story);
+                let embed = {
+                    "embed": {
+                        "description": `The story length is: ${story.length} Words`,
+                        "timestamp": new Date().toISOString(),
+                        "color": conf.embedColor,
+                        "author": {
+                            "name": "One Word Story",
+                            "url": `https://discordapp.com/channels/${conf.guild}/${conf.channel}`
+                        }
+                    }
+                };
+                message.author.send(embed);
             })
         } catch(e) {
             console.log(e);
         }
-        let story = Object.values(words.story);
-        let embed = {
-            "embed": {
-                "description": `The story length is: ${story.length} Words`,
-                "timestamp": new Date().toISOString(),
-                "color": conf.embedColor,
-                "author": {
-                    "name": "One Word Story",
-                    "url": `https://discordapp.com/channels/${conf.guild}/${conf.channel}`
-                }
-            }
-        };
-        message.author.send(embed);
         message.delete();
     },
     'savestory': async (message: Message, args: string) => {
@@ -162,16 +162,22 @@ NOTE: limit can not be set to more than 100.
 async function indexChannel(channel:TextChannel ,start: string, limit=100, topToBot=false, maxiteration=Infinity, length=0, message:Array<indexObject>=[], iterate=0): Promise<indexReturn>{
     let controll={limit:limit};
     let conString="after";
-    if (topToBot) conString="before";
+    if (!topToBot) conString="before";
     controll[conString]=start;
-    let mess = await channel.fetchMessages(controll)
-    let conCatMess=message.concat(mess.array().map(e=>{return {message:e.content,id:e.id};}));
+
+    let mess = await channel.fetchMessages(controll);
+    if(mess==undefined||mess.size<1) return;
+
+    let newMessArray:Array<indexObject>=[];
+    mess.forEach(e=>newMessArray.push({message:e.content,id:e.id}));
+    let conCatMess = message.concat(newMessArray);
+    conCatMess.sort((a,b)=>{if(a.id>b.id){return 1;}if(a.id<b.id){return -1;}return 0;})
+
     if (length+limit>length+mess.size || iterate==maxiteration) { 
-            return {messages:conCatMess,lastId:mess.array()[mess.array().length-1].id};
+            return {messages:conCatMess,lastId:conCatMess[0].id};
     } else {
         iterate++
-        //console.log(iterate,maxiteration,start)
-        return indexChannel(channel,mess.array()[mess.array().length-1].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
+        return indexChannel(channel,conCatMess[0].id,limit,topToBot,maxiteration,length+mess.size,conCatMess,iterate)
     }
 }
 /** Return all data generated from indexChannel converted into StoryObject. */
@@ -186,12 +192,8 @@ function convertToStory(object:indexReturn){
 function checkLastId(channel:TextChannel){
     if(words.lastMessageId=="") return;
     if(channel.lastMessageID==words.lastMessageId) return;
-    if(channel.messages[words.lastMessageId]==undefined) {
-        words.lastMessageId=channel.lastMessageID;
-        return;
-    }
     indexChannel(channel,words.lastMessageId,100,true).then(e=>{
-        let newMessage=convertToStory(e)
+        let newMessage=convertToStory(e);
         words.lastMessageId=newMessage.lastMessageId;
         Object.assign(words.story, newMessage.story);
         save();
@@ -200,6 +202,7 @@ function checkLastId(channel:TextChannel){
   
 function save() {
     if(words.lastMessageId=="") return;
+    if(words.story==undefined) return;
     fs.writeFileSync(conf.saveLocation, JSON.stringify(words));
 }
 
@@ -208,7 +211,7 @@ client.on('ready', () => {
     let channel: any = client.channels.get(conf.channel);
     checkLastId(channel)
     setInterval(save, conf.saveInterval);
-    console.info(`Saving story every ${conf.saveInterval} milliseconds`);
+    console.info(`Saving story every ${conf.saveInterval/1000} seconds.`);
     console.info("I'm ready!");
 });
 
